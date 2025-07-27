@@ -92,7 +92,7 @@ def user(username):
 @app.route('/edit_profile', methods = ['GET', 'POST'])
 @login_required
 def edit_profile():
-    form = EditProfileForm()
+    form = EditProfileForm(current_user.username) # <-- Truyền original_username vào form
     if form.validate_on_submit(): # <-- Xử lý POST request hợp lệ
         current_user.username = form.username.data
         current_user.about_me = form.about_me.data
