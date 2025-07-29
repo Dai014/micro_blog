@@ -10,20 +10,41 @@ from app import login
 
 from app import db
 
+followers = sa.Table(
+    'followers',
+    db.metadata,
+    sa.Column('follower_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True),
+    sa.Column('followed_id', sa.Integer, sa.ForeignKey('user.id'), primary_key=True))
+
+
 class User(UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
+
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True,
                                                 unique=True)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True,
                                              unique=True)
     password_hash: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
 
-    about_me : so.Mapped[Optional[str]] = so.mapped_column(sa.String(240))
+    about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.String(240))
 
     last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(default=lambda: datetime.now(timezone.utc))
 
     posts: so.WriteOnlyMapped['Post'] = so.relationship(
         back_populates='author')
+
+    following: so.WriteOnlyMapped['User'] = so.relationship(
+        secondary=followers,
+        primaryjoin=(id == followers.c.follower_id),
+        secondaryjoin=(id == followers.c.followed_id),
+        back_populates='followers')
+
+    followers: so.WriteOnlyMapped['User'] = so.relationship(
+        secondary=followers,
+        primaryjoin=(id == followers.c.followed_id),
+        secondaryjoin=(id == followers.c.follower_id),
+        back_populates='following'
+    )
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -37,6 +58,23 @@ class User(UserMixin, db.Model):
     def avatar(self, size):
         digest = md5(self.email.lower().encode('utf-8')).hexdigest()
         return f'https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}'
+
+    def follow(self, user: 'User') -> None:
+        if not self.is_following(user):
+            self.following.add(user)
+
+    def unfollow(self, user):
+        if self.is_following(user):
+            self.following.remove(user)
+
+    def is_following(self, user: 'User') -> bool:
+        query = self.following.select().where(User.id == user.id)
+        return db.session.scalar(query) is not None
+
+    def followers_count(self):
+        query = sa.select(sa.func.count()).select_from(self.followers.select().subquery())
+        return db.session.scalar(query)
+
 
 
 class Post(db.Model):
@@ -52,7 +90,7 @@ class Post(db.Model):
     def __repr__(self):
         return '<Post {}>'.format(self.body)
 
+
 @login.user_loader
 def load_user(id):
     return db.session.get(User, int(id))
-
