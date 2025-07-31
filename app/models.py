@@ -76,6 +76,19 @@ class User(UserMixin, db.Model):
         return db.session.scalar(query)
 
 
+    def following_posts(self):
+        Author = so.aliased(User)    # User này là tác giả của bài post
+        Follower = so.aliased(User)  # User này là người đang follow
+
+        return (
+            sa.select(Post) # Chọn tất cả các bài post
+            .join(Post.author.of_type(Author)) # Kết nối bài post với tác giả của nó (mà ta gọi là Author)
+            .join(Author.followers.of_type(Follower)) # Từ tác giả, kết nối đến những người follow tác giả (mà ta gọi là Follower)
+            .where(Follower.id == self.id) # Chỉ lấy những bài post mà tác giả của chúng được follow bởi user hiện tại (self.id)
+            .order_by(Post.timestamp.desc()) # Sắp xếp bài post theo thời gian giảm dần (mới nhất trước)
+        )
+
+
 
 class Post(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
