@@ -75,19 +75,25 @@ class User(UserMixin, db.Model):
         query = sa.select(sa.func.count()).select_from(self.followers.select().subquery())
         return db.session.scalar(query)
 
+    def following_count(self):
+        query = sa.select(sa.func.count()).select_from(
+            self.following.select().subquery())
+        return db.session.scalar(query)
 
     def following_posts(self):
-        Author = so.aliased(User)    # User này là tác giả của bài post
-        Follower = so.aliased(User)  # User này là người đang follow
-
+        Author = so.aliased(User)
+        Follower = so.aliased(User)
         return (
-            sa.select(Post) # Chọn tất cả các bài post
-            .join(Post.author.of_type(Author)) # Kết nối bài post với tác giả của nó (mà ta gọi là Author)
-            .join(Author.followers.of_type(Follower)) # Từ tác giả, kết nối đến những người follow tác giả (mà ta gọi là Follower)
-            .where(Follower.id == self.id) # Chỉ lấy những bài post mà tác giả của chúng được follow bởi user hiện tại (self.id)
-            .order_by(Post.timestamp.desc()) # Sắp xếp bài post theo thời gian giảm dần (mới nhất trước)
+            sa.select(Post)
+            .join(Post.author.of_type(Author))
+            .join(Author.followers.of_type(Follower), isouter=True)
+            .where(sa.or_(
+                Follower.id == self.id,
+                Author.id == self.id,
+            ))
+            .group_by(Post)
+            .order_by(Post.timestamp.desc())
         )
-
 
 
 class Post(db.Model):
