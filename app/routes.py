@@ -34,7 +34,7 @@ def index():
         return redirect(url_for('index'))
 
     page = request.args.get('page', 1, type=int)
-    posts = db.paginate(current_user.folowing_posts(), page = page, per_page=app.config['POSTS_PER_PAGE'], error_out=False)
+    posts = db.paginate(current_user.following_posts(), page = page, per_page=app.config['POSTS_PER_PAGE'], error_out=False)
     next_url = url_for('index', page=posts.next_num) if posts.has_next else None
     prev_url = url_for('index', page=posts.prev_num) if posts.has_prev else None
 
