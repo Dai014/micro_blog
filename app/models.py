@@ -158,7 +158,7 @@ def load_user(id):
     return db.session.get(User, int(id))
 
 
-class Post(db.Model):
+class Post(SearchableMixin, db.Model):
     __searchable__ = ['body']
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     body: so.Mapped[str] = so.mapped_column(sa.String(140))
@@ -177,7 +177,7 @@ class Post(db.Model):
 class SearchableMixin(object):
     @classmethod
     def search(cls, expression, page, per_page):
-        ids, total = query_index(cls.__tablename__, expression, page, per_page)
+        ids, total = query_index(cls.__tablename__, expression, page, per_page) #them id vao when theo thu tu i
         if total == 0:
             return [], 0
         when = []
